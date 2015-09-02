@@ -300,7 +300,9 @@ public class Peripheral extends BluetoothGattCallback {
             CallbackContext context = this.startNotifyCallback;
             this.startNotifyCallback = null;
             if (context != null) {
-                context.error(0); // falsy means success                
+                PluginResult result = new PluginResult(PluginResult.Status.ERROR, 0); // falsy means success
+                result.setKeepCallback(true);
+                context.sendPluginResult(result);
             }
         } finally {
             this.startNotifyCallback = null;
