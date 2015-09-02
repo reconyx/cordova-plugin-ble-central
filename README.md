@@ -263,7 +263,7 @@ Raw data is passed from native code to the success callback as an [ArrayBuffer](
 - __characteristic_uuid__: UUID of the BLE characteristic
 - __onData__: onData callback function that is invoked when data is notified. [optional]
 - __failure__: Error callback function, invoked when error occurs. [optional]
-- __success__: Success callback function.  Optional.  invoked when notifications are successfully hooked up.
+- __success__: Success callback function, invoked when notifications are successfully hooked up. [optional]
 
 ## stopNotification
 
