@@ -246,11 +246,13 @@ Function `writeWithoutResponse` writes data to a characteristic without a respon
 
 Register to be notified when the value of a characteristic changes.
 
-    ble.startNotification(device_id, service_uuid, characteristic_uuid, success, failure);
+    ble.startNotification(device_id, service_uuid, characteristic_uuid, onData, failure, success);
 
 ### Description
 
 Function `startNotification` registers a callback that is called when the value of a characteristic changes. This method handles both `notifications` and `indications`.
+
+Note: indication is only implemented for Android.
 
 Raw data is passed from native code to the success callback as an [ArrayBuffer](#typed-arrays).
 
@@ -259,8 +261,9 @@ Raw data is passed from native code to the success callback as an [ArrayBuffer](
 - __device_id__: UUID or MAC address of the peripheral
 - __service_uuid__: UUID of the BLE service
 - __characteristic_uuid__: UUID of the BLE characteristic
-- __success__: Success callback function that is invoked when the connection is successful. [optional]
+- __onData__: onData callback function that is invoked when data is notified. [optional]
 - __failure__: Error callback function, invoked when error occurs. [optional]
+- __success__: Success callback function.  Optional.  invoked when notifications are successfully hooked up.
 
 ## stopNotification
 
