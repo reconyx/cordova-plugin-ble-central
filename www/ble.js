@@ -115,8 +115,16 @@ module.exports = {
     },
 
     // success callback is called on notification
-    startNotification: function (device_id, service_uuid, characteristic_uuid, success, failure) {
-        cordova.exec(success, failure, 'BLE', 'startNotification', [device_id, service_uuid, characteristic_uuid]);
+    startNotification: function (device_id, service_uuid, characteristic_uuid, data, failure, success) {
+        var failureWrapper = function(error) {
+          if (error) {
+              failure(error);
+          }
+          else if (success) {
+              success();
+          }
+        };
+        cordova.exec(data, failureWrapper, 'BLE', 'startNotification', [device_id, service_uuid, characteristic_uuid]);
     },
 
     // success callback is called when the descriptor 0x2902 is written

@@ -50,6 +50,7 @@ public class Peripheral extends BluetoothGattCallback {
     private CallbackContext connectCallback;
     private CallbackContext readCallback;
     private CallbackContext writeCallback;
+    private CallbackContext startNotifyCallback;
 
     private Map<String, CallbackContext> notificationCallbacks = new HashMap<String, CallbackContext>();
 
@@ -296,7 +297,13 @@ public class Peripheral extends BluetoothGattCallback {
         try {
             super.onDescriptorWrite(gatt, descriptor, status);
             LOG.d(TAG, "onDescriptorWrite " + descriptor);
+            CallbackContext context = this.startNotifyCallback;
+            this.startNotifyCallback = null;
+            if (context != null) {
+                context.error(0); // falsy means success                
+            }
         } finally {
+            this.startNotifyCallback = null;
             commandCompleted();
         }
     }
@@ -307,7 +314,7 @@ public class Peripheral extends BluetoothGattCallback {
 
     // This seems way too complicated
     private void registerNotifyCallback(CallbackContext callbackContext, UUID serviceUUID, UUID characteristicUUID) {
-        
+        startNotifyCallback = callbackContext;
         boolean success = false;
         try {
     

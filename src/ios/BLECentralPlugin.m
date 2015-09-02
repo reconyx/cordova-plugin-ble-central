@@ -467,11 +467,16 @@
         [stopNotificationCallbacks removeObjectForKey:key];
         [notificationCallbacks removeObjectForKey:key];
 
-    } else if (notificationCallbackId && error) {
-
-        NSLog(@"%@", error);
-        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:[error localizedDescription]];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:notificationCallbackId];
+    } else if (notificationCallbackId ) {
+        if (error) {
+            NSLog(@"%@", error);
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:[error localizedDescription]];
+            [self.commandDelegate sendPluginResult:pluginResult callbackId:notificationCallbackId];
+        }
+        else {
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR];
+            [self.commandDelegate sendPluginResult:pluginResult callbackId:notificationCallbackId];
+        }
     }
 
 }
