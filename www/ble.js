@@ -75,10 +75,26 @@ module.exports = {
         cordova.exec(success, failure, 'BLE', 'list', []);
     },
 
-    connect: function (device_id, success, failure) {
-        var successWrapper = function(peripheral) {
-            convertToNativeJS(peripheral);
-            success(peripheral);
+    connect: function (device_id, success, failure, rssi) {
+        var successWrapper = function(arg) {
+            // is this the rssi number?
+            if (typeof arg === "number") {
+                // do we have an rssi callback?
+                if (rssi) {
+                    // call it with the arg
+                    rssi(arg)
+                }
+            }
+            else {
+                if (success !== null) {
+                    // otherwise, this is device success, so send it to the success callback
+                    convertToNativeJS(arg);
+                    success(arg);
+                    // free any memory / references held by this function we will no longer call
+                    success = null;
+                }
+                
+            }
         };
         cordova.exec(successWrapper, failure, 'BLE', 'connect', [device_id]);
     },

@@ -44,6 +44,7 @@ public class Peripheral extends BluetoothGattCallback {
     private boolean connected = false;
     private ConcurrentLinkedQueue<BLECommand> commandQueue = new ConcurrentLinkedQueue<BLECommand>();
     private boolean bleProcessing;
+    private Timer rssiTimer;
 
     BluetoothGatt gatt;
 
@@ -74,6 +75,13 @@ public class Peripheral extends BluetoothGattCallback {
     public void disconnect() {
         connectCallback = null;
         connected = false;
+        
+        // quit checking remote rssi
+        if (rssiTimer != null) {
+            rssiTimer.cancel();
+            rssiTimer = null;
+        }
+        
         if (gatt != null) {
             gatt.disconnect(); // close any pending connections
             gatt.close();
@@ -192,13 +200,35 @@ public class Peripheral extends BluetoothGattCallback {
     }
 
     @Override
-    public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+    public void onServicesDiscovered(final BluetoothGatt gatt, int status) {
         super.onServicesDiscovered(gatt, status);
 
         if (status == BluetoothGatt.GATT_SUCCESS) {
             PluginResult result = new PluginResult(PluginResult.Status.OK, this.asJSONObject(gatt));
             result.setKeepCallback(true);
             connectCallback.sendPluginResult(result);
+            
+            try {
+                TimerTask task = new TimerTask()
+                {
+                    @Override
+                    public void run()
+                    {
+                        gatt.readRemoteRssi();
+                    }
+                };
+
+                if (rssiTimer != null) {
+                    rssiTimer.cancel();
+                }              
+                  
+                rssiTimer = new Timer();
+                rssiTimer.schedule(task, 0, 500);
+            }
+            catch(Exception e) {
+                LOG.e(TAG, "Exception setting up RSSI task: " + e.toString());
+            }
+            
         } else {
             connectCallback.error("Service discovery failed. status = " + status);
             disconnect();
@@ -206,7 +236,7 @@ public class Peripheral extends BluetoothGattCallback {
     }
 
     @Override
-    public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
+    public void onConnectionStateChange(final BluetoothGatt gatt, int status, int newState) {
 
         this.gatt = gatt;
 
@@ -234,6 +264,18 @@ public class Peripheral extends BluetoothGattCallback {
             }
         }
 
+    }
+
+    @Override
+    public void onReadRemoteRssi(BluetoothGatt gatt, int rssi, int status) {
+        if (status == BluetoothGatt.GATT_SUCCESS) {
+            LOG.d(TAG, String.format("BluetoothGatt ReadRssi[%d]", rssi));
+            if (connectCallback != null) {
+                PluginResult result = new PluginResult(PluginResult.Status.OK, rssi);
+                result.setKeepCallback(true);
+                connectCallback.sendPluginResult(result);                
+            }
+        }
     }
 
     @Override
