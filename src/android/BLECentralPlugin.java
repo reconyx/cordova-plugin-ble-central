@@ -63,6 +63,9 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
 
     private static final String TAG = "BLEPlugin";
     private static final int REQUEST_ENABLE_BLUETOOTH = 1;
+	private static final int RESCAN_INTERVAL = 2000;
+
+	private boolean isScanning = false;
 
     BluetoothAdapter bluetoothAdapter;
 
@@ -94,7 +97,7 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
             findLowEnergyDevices(callbackContext, serviceUUIDs, -1);
 
         } else if (action.equals(STOP_SCAN)) {
-
+			isScanning = false;
             bluetoothAdapter.stopLeScan(this);
             callbackContext.success();
 
@@ -270,7 +273,7 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
 
     }
 
-    private void findLowEnergyDevices(CallbackContext callbackContext, UUID[] serviceUUIDs, int scanSeconds) {
+    private void findLowEnergyDevices(CallbackContext callbackContext, final UUID[] serviceUUIDs, int scanSeconds) {
 
         // TODO skip if currently scanning
 
@@ -295,11 +298,32 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
             handler.postDelayed(new Runnable() {
                 @Override
                 public void run() {
+					isScanning = false;
                     LOG.d(TAG, "Stopping Scan");
                     BLECentralPlugin.this.bluetoothAdapter.stopLeScan(BLECentralPlugin.this);
                 }
             }, scanSeconds * 1000);
         }
+
+		isScanning = true;
+
+		final Handler rescanHandler = new Handler();
+        rescanHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                LOG.d(TAG, "Rescanning");
+				if (isScanning) {
+					BLECentralPlugin.this.bluetoothAdapter.stopLeScan(BLECentralPlugin.this);
+
+					if (serviceUUIDs.length > 0) {
+						BLECentralPlugin.this.bluetoothAdapter.startLeScan(serviceUUIDs, BLECentralPlugin.this);
+					} else {
+						BLECentralPlugin.this.bluetoothAdapter.startLeScan(BLECentralPlugin.this);
+					}
+					rescanHandler.postDelayed(this, RESCAN_INTERVAL);
+				}
+            }
+        }, RESCAN_INTERVAL);
 
         PluginResult result = new PluginResult(PluginResult.Status.NO_RESULT);
         result.setKeepCallback(true);
@@ -340,6 +364,12 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
             // this isn't necessary
             Peripheral peripheral = peripherals.get(address);
             peripheral.updateRssi(rssi);
+
+            if (discoverCallback != null) {
+                PluginResult result = new PluginResult(PluginResult.Status.OK, peripheral.asJSONObject());
+                result.setKeepCallback(true);
+                discoverCallback.sendPluginResult(result);
+            }
         }
 
         // TODO offer option to return duplicates
