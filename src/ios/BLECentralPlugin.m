@@ -326,7 +326,7 @@
 
 - (void)centralManagerDidUpdateState:(CBCentralManager *)central
 {
-    NSLog(@"Status of CoreBluetooth central manager changed %ld %@", central.state, [self centralManagerStateToString: central.state]);
+    NSLog(@"Status of CoreBluetooth central manager changed %ld %@", (long)central.state, [self centralManagerStateToString: central.state]);
 }
 
 - (void)centralManager:(CBCentralManager *)central didConnectPeripheral:(CBPeripheral *)peripheral {
@@ -515,7 +515,7 @@
 
     for (CBPeripheral *p in peripherals) {
 
-        NSString* other = CFBridgingRelease(CFUUIDCreateString(nil, p.UUID));
+        NSString* other = p.identifier.UUIDString;
 
         if ([uuid isEqualToString:other]) {
             peripheral = p;
