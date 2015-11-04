@@ -367,6 +367,11 @@ public class Peripheral extends BluetoothGattCallback {
             }
     
             BluetoothGattService service = gatt.getService(serviceUUID);
+            if (service == null) {
+                callbackContext.error("register notify failed, service not found " + serviceUUID);
+                return; // note: commandCompleted() will still get called
+            }
+
             BluetoothGattCharacteristic characteristic = service.getCharacteristic(characteristicUUID);
             String key = generateHashKey(serviceUUID, characteristic);
     
@@ -423,6 +428,10 @@ public class Peripheral extends BluetoothGattCallback {
             }
     
             BluetoothGattService service = gatt.getService(serviceUUID);
+            if (service == null) {
+                callbackContext.error("read characteristic failed, service not found " + serviceUUID);
+                return; // note: commandCompleted() will still get called
+            }            
             BluetoothGattCharacteristic characteristic = service.getCharacteristic(characteristicUUID);
     
             if (characteristic == null) {
@@ -455,6 +464,10 @@ public class Peripheral extends BluetoothGattCallback {
             }
     
             BluetoothGattService service = gatt.getService(serviceUUID);
+            if (service == null) {
+                callbackContext.error("Write failed: service " + serviceUUID + " not found, services: " + d);
+                return; // note: commandCompleted() will still get called
+            }
             BluetoothGattCharacteristic characteristic = service.getCharacteristic(characteristicUUID);
     
             if (characteristic == null) {
