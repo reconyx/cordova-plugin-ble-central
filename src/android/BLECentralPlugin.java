@@ -72,6 +72,8 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
     // key is the MAC Address
     Map<String, Peripheral> peripherals = new LinkedHashMap<String, Peripheral>();
 
+    UUID[] scanFilterUuids = null;
+
     @Override
     public boolean execute(String action, CordovaArgs args, CallbackContext callbackContext) throws JSONException {
 
@@ -287,11 +289,16 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
 
         discoverCallback = callbackContext;
 
-        if (serviceUUIDs.length > 0) {
-            bluetoothAdapter.startLeScan(serviceUUIDs, this);
-        } else {
+        scanFilterUuids = serviceUUIDs;
+        
+        // the Android 4.3 code has a bug parsing UUIDs.  This code gets around that by
+        // asking android for everything, and then filtering the results after the fact
+        
+        //if (serviceUUIDs.length > 0) {
+            //bluetoothAdapter.startLeScan(serviceUUIDs, this);
+        //} else {
             bluetoothAdapter.startLeScan(this);
-        }
+        //}
 
         if (scanSeconds > 0) {
             Handler handler = new Handler();
@@ -344,20 +351,65 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
         callbackContext.sendPluginResult(result);
     }
 
+
+    static List<UUID> parseUuids(byte[] adv_data) {
+        List<UUID> uuids = new ArrayList<UUID>();
+
+        int offset = 0;
+        while (offset < (adv_data.length - 2)) {
+            int len = adv_data[offset++];
+            if (len == 0) break;
+            if (offset + len > adv_data.length) break;
+
+            int type = adv_data[offset++];
+            switch (type) {
+                case 0x02: // Partial list of 16-bit UUIDs
+                case 0x03: // Complete list of 16-bit UUIDs
+                    while (len > 1) {
+                        int uuid16 = (adv_data[offset++] & 0xff) | ((adv_data[offset++] & 0xff) << 8);
+                        len -= 2;
+                        uuids.add(UUID.fromString(String.format(
+                                "%08x-0000-1000-8000-00805f9b34fb", uuid16)));
+                    }
+                    break;
+
+                default:
+                    offset += len;
+                    break;
+            }
+        }
+
+        return uuids;
+    }
+
     @Override
     public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord) {
 
         String address = device.getAddress();
 
         if (!peripherals.containsKey(address)) {
+            
+            List<UUID> uuids = parseUuids(scanRecord);
+            boolean found = false;
+            for(UUID uuid: uuids) {
+                for (UUID uuid2: scanFilterUuids) {
+                    if (uuid.equals(uuid2)) {
+                        found = true;
+                        break;
+                    }                    
+                }
+            }
 
-            Peripheral peripheral = new Peripheral(device, rssi, scanRecord);
-            peripherals.put(device.getAddress(), peripheral);
-
-            if (discoverCallback != null) {
-                PluginResult result = new PluginResult(PluginResult.Status.OK, peripheral.asJSONObject());
-                result.setKeepCallback(true);
-                discoverCallback.sendPluginResult(result);
+            if (found) {
+                Peripheral peripheral = new Peripheral(device, rssi, scanRecord);
+                peripherals.put(device.getAddress(), peripheral);
+    
+    
+                if (discoverCallback != null) {
+                    PluginResult result = new PluginResult(PluginResult.Status.OK, peripheral.asJSONObject());
+                    result.setKeepCallback(true);
+                    discoverCallback.sendPluginResult(result);
+                }
             }
 
         } else {
