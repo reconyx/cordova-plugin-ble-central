@@ -465,7 +465,7 @@ public class Peripheral extends BluetoothGattCallback {
     
             BluetoothGattService service = gatt.getService(serviceUUID);
             if (service == null) {
-                callbackContext.error("Write failed: service " + serviceUUID + " not found, services: " + d);
+                callbackContext.error("Write failed: service " + serviceUUID + " not found.");
                 return; // note: commandCompleted() will still get called
             }
             BluetoothGattCharacteristic characteristic = service.getCharacteristic(characteristicUUID);
