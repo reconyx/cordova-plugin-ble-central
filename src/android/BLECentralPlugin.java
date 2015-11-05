@@ -293,12 +293,8 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
         
         // the Android 4.3 code has a bug parsing UUIDs.  This code gets around that by
         // asking android for everything, and then filtering the results after the fact
-        
-        //if (serviceUUIDs.length > 0) {
-            //bluetoothAdapter.startLeScan(serviceUUIDs, this);
-        //} else {
-            bluetoothAdapter.startLeScan(this);
-        //}
+        // instead of by providing Android with the UUID to filter
+        bluetoothAdapter.startLeScan(this);
 
         if (scanSeconds > 0) {
             Handler handler = new Handler();
@@ -321,12 +317,7 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
                 LOG.d(TAG, "Rescanning");
 				if (isScanning) {
 					BLECentralPlugin.this.bluetoothAdapter.stopLeScan(BLECentralPlugin.this);
-
-					if (serviceUUIDs.length > 0) {
-						BLECentralPlugin.this.bluetoothAdapter.startLeScan(serviceUUIDs, BLECentralPlugin.this);
-					} else {
-						BLECentralPlugin.this.bluetoothAdapter.startLeScan(BLECentralPlugin.this);
-					}
+                    BLECentralPlugin.this.bluetoothAdapter.startLeScan(BLECentralPlugin.this);
 					rescanHandler.postDelayed(this, RESCAN_INTERVAL);
 				}
             }
