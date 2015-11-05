@@ -362,6 +362,7 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
             if (offset + len > adv_data.length) break;
 
             int type = adv_data[offset++];
+            len--; //subtract one byte for the type
             switch (type) {
                 case 0x02: // Partial list of 16-bit UUIDs
                 case 0x03: // Complete list of 16-bit UUIDs
@@ -371,6 +372,7 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
                         uuids.add(UUID.fromString(String.format(
                                 "%08x-0000-1000-8000-00805f9b34fb", uuid16)));
                     }
+                    offset += len;
                     break;
 
                 default:
