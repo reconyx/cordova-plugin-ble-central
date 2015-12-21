@@ -230,7 +230,10 @@ public class Peripheral extends BluetoothGattCallback {
             }
             
         } else {
-            connectCallback.error("Service discovery failed. status = " + status);
+            if (connectCallback != null) {
+                connectCallback.error("Service discovery failed. status = " + status);
+                connectCallback = null;
+            }
             disconnect();
         }
     }
@@ -260,8 +263,8 @@ public class Peripheral extends BluetoothGattCallback {
             if (connectCallback != null) {
                 connectCallback.error("Disconnected");
                 connectCallback = null;
-                disconnect();
             }
+            disconnect();
         }
 
     }
