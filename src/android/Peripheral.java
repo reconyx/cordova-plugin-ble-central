@@ -18,6 +18,9 @@ import android.app.Activity;
 
 import android.bluetooth.*;
 import android.util.Base64;
+import android.os.Handler;
+import android.os.Looper;
+
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.LOG;
 import org.apache.cordova.PluginResult;
@@ -38,6 +41,8 @@ public class Peripheral extends BluetoothGattCallback {
     public final static UUID CLIENT_CHARACTERISTIC_CONFIGURATION_UUID = UUIDHelper.uuidFromString("2902");
     private static final String TAG = "Peripheral";
 
+    private BluetoothManager bluetoothManager;
+    private BluetoothAdapter bluetoothAdapter;
     private BluetoothDevice device;
     private byte[] advertisingData;
     private int advertisingRSSI;
@@ -54,38 +59,81 @@ public class Peripheral extends BluetoothGattCallback {
 
     private Map<String, CallbackContext> notificationCallbacks = new HashMap<String, CallbackContext>();
 
-    public Peripheral(BluetoothDevice device, int advertisingRSSI, byte[] scanRecord) {
-
+    public Peripheral(BluetoothManager bluetoothManager, BluetoothAdapter bluetoothAdapter, BluetoothDevice device, int advertisingRSSI, byte[] scanRecord) {
+        this.bluetoothManager = bluetoothManager;
+        this.bluetoothAdapter = bluetoothAdapter;
         this.device = device;
         this.advertisingRSSI = advertisingRSSI;
         this.advertisingData = scanRecord;
 
     }
+    
+    protected void runOnUiThread(Runnable runnable) {
+        Handler handler = new Handler(Looper.getMainLooper());
+        handler.post(runnable);
+    }
 
-    public void connect(CallbackContext callbackContext, Activity activity) {
-        BluetoothDevice device = getDevice();
+    protected boolean disconnected = false;
+
+    public void connect(final CallbackContext callbackContext, final Activity activity) {
+        final BluetoothDevice device = getDevice();
         connectCallback = callbackContext;
-        gatt = device.connectGatt(activity, false, this);
 
-        PluginResult result = new PluginResult(PluginResult.Status.NO_RESULT);
-        result.setKeepCallback(true);
-        callbackContext.sendPluginResult(result);
+        final Peripheral peripheral = this;
+        runOnUiThread(new Runnable() {   
+            @Override
+            public void run() {         
+                peripheral.gatt = device.connectGatt(activity, false, peripheral);
+                if (gatt == null) {
+                    LOG.d(TAG, "connect gatt returned null");
+                }
+                else {
+                    LOG.d(TAG, "connect gatt returned not null");
+                }
+        
+                PluginResult result = new PluginResult(PluginResult.Status.NO_RESULT);
+                result.setKeepCallback(true);
+                callbackContext.sendPluginResult(result);
+            }
+        });
+    }
+
+    private boolean isConnected2() {
+        List<BluetoothDevice> connectedDevices = bluetoothManager.getConnectedDevices(BluetoothProfile.GATT_SERVER); 
+        if (connectedDevices != null) {
+            for (BluetoothDevice connectedDevice : connectedDevices) {
+                if (connectedDevice.getAddress() == device.getAddress()) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public void disconnect() {
+        disconnected = true;
         connectCallback = null;
-        connected = false;
         
         // quit checking remote rssi
         if (rssiTimer != null) {
             rssiTimer.cancel();
             rssiTimer = null;
         }
+
+        connected = false;        
         
         if (gatt != null) {
-            gatt.disconnect(); // close any pending connections
-            gatt.close();
-            gatt = null;
+            
+            // if android thinks we are connected
+            if (isConnected2()) {
+                // disconnect
+                gatt.disconnect();
+            }
+            else {
+                // otherwise free the resource
+                gatt.close();                
+                gatt = null;
+            }
         }
         
         // NOTE: if a disconnect happens between writeCharacteristic() and onCharacteristicWrite(),
@@ -103,6 +151,9 @@ public class Peripheral extends BluetoothGattCallback {
             connectCallback.error("disconnected");
             connectCallback = null;            
         }
+        
+        // remove the notification callback
+        notificationCallbacks.clear();
         
         // when the above issue happens, make sure we aren't stuck in bleProcessing = true
         bleProcessing = false; 
@@ -196,6 +247,12 @@ public class Peripheral extends BluetoothGattCallback {
     }
 
     public BluetoothDevice getDevice() {
+        if (disconnected) {
+            BluetoothDevice newDevice = bluetoothAdapter.getRemoteDevice(device.getAddress());
+            if (newDevice != null) {
+                device = newDevice;
+            }
+        }
         return device;
     }
 
@@ -231,6 +288,7 @@ public class Peripheral extends BluetoothGattCallback {
             
         } else {
             if (connectCallback != null) {
+                LOG.e(TAG, "Service discovery failed. status = " + status);
                 connectCallback.error("Service discovery failed. status = " + status);
                 connectCallback = null;
             }
@@ -241,30 +299,45 @@ public class Peripheral extends BluetoothGattCallback {
     @Override
     public void onConnectionStateChange(final BluetoothGatt gatt, int status, int newState) {
 
-        this.gatt = gatt;
+        LOG.d(TAG, "onConnectionStateChange()");
+        //this.gatt = gatt;
 
         if (newState == BluetoothGatt.STATE_CONNECTED) {
-
+            LOG.d(TAG, "connected");
             connected = true;
-            boolean success = gatt.discoverServices();
-            if (!success) {
-                LOG.d(TAG, "discoverServices() failed");
-                connected = false;
-                if (connectCallback != null) {
-                    connectCallback.error("Service discovery failed");
-                    connectCallback = null;
+            final Peripheral peripheral = this;
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {         
+                
+                    boolean success = gatt.discoverServices();
+                    if (!success) {
+                        LOG.d(TAG, "discoverServices() failed");
+                        if (peripheral.connectCallback != null) {
+                            peripheral.connectCallback.error("Service discovery failed");
+                            peripheral.connectCallback = null;
+                        }
+                        peripheral.disconnect();
+                    }
                 }
-                disconnect();
-            }
+            });
 
         } else {
-
-            connected = false;
+            LOG.d(TAG, "disconnected");
             if (connectCallback != null) {
                 connectCallback.error("Disconnected");
                 connectCallback = null;
             }
+            
+            // make sure disconnect() doesn't call gatt.disconnect()
+            connected = false;
+            
+            // cleanup anything that needs cleaning up
             disconnect();
+            
+            // close the handle
+            gatt.close();
+            this.gatt = null;           
         }
 
     }

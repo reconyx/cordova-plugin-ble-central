@@ -67,6 +67,7 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
 
 	private boolean isScanning = false;
 
+    BluetoothManager bluetoothManager;
     BluetoothAdapter bluetoothAdapter;
 
     // key is the MAC Address
@@ -81,7 +82,7 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
 
         if (bluetoothAdapter == null) {
             Activity activity = cordova.getActivity();
-            BluetoothManager bluetoothManager = (BluetoothManager) activity.getSystemService(Context.BLUETOOTH_SERVICE);
+            bluetoothManager = (BluetoothManager) activity.getSystemService(Context.BLUETOOTH_SERVICE);
             bluetoothAdapter = bluetoothManager.getAdapter();
         }
 
@@ -394,7 +395,7 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
             }
 
             if (found) {
-                Peripheral peripheral = new Peripheral(device, rssi, scanRecord);
+                Peripheral peripheral = new Peripheral(bluetoothManager, bluetoothAdapter, device, rssi, scanRecord);
                 peripherals.put(device.getAddress(), peripheral);
     
     
