@@ -225,6 +225,21 @@
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
+- (void)isCapable:(CDVInvokedUrlCommand*)command {
+
+    CDVPluginResult *pluginResult = nil;
+    int bluetoothState = [manager state];
+
+    BOOL notSupported = bluetoothState == CBCentralManagerStateUnsupported;
+
+    if (notSupported) {
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsInt:bluetoothState];        
+    } else {
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+    }
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+}
+
 - (void)scan:(CDVInvokedUrlCommand*)command {
 
     NSLog(@"scan");
