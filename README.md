@@ -336,6 +336,32 @@ Function `isEnabled` calls the success callback when Bluetooth is enabled and th
             console.log("Bluetooth is *not* enabled");
         }
     );
+    
+## isCapable
+
+Reports if bluetooth is available on this device.
+
+    ble.isCapable(success, failure);
+
+### Description
+
+Function `isCapable` calls the success callback when this device is capable of using Bluetooth, and the failure callback when Bluetooth is *not* capable.
+
+### Parameters
+
+- __success__: Success callback function that is invoked with a boolean for connected status.
+- __failure__: Error callback function, invoked when error occurs. [optional]
+
+### Quick Example
+
+    ble.isEnabled(
+        function() {
+            console.log("Bluetooth is enabled");
+        },
+        function() {
+            console.log("Bluetooth is *not* enabled");
+        }
+    );    
 
 ## showBluetoothSettings
 

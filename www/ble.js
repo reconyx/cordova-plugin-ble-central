@@ -167,6 +167,10 @@ module.exports = {
 
     showBluetoothSettings: function (success, failure) {
         cordova.exec(success, failure, "BLE", "showBluetoothSettings", []);
-    }
+    },
+    
+    isCapable: function (success, failure) {
+        cordova.exec(success, failure, "BLE", "isCapable", []);  
+    },
 
 };

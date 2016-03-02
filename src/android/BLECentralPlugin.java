@@ -32,6 +32,7 @@ import org.apache.cordova.PluginResult;
 import org.json.JSONArray;
 import org.json.JSONException;
 
+
 import java.util.*;
 
 public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.LeScanCallback {
@@ -54,6 +55,7 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
 
     private static final String IS_ENABLED = "isEnabled";
     private static final String IS_CONNECTED  = "isConnected";
+    private static final String IS_CAPABLE = "isCapable";
 
     private static final String SETTINGS = "showBluetoothSettings";
     private static final String ENABLE = "enable";
@@ -156,6 +158,14 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
                 callbackContext.success();
             } else {
                 callbackContext.error("Bluetooth is disabled.");
+            }
+
+        } else if (action.equals(IS_CAPABLE)) {
+
+            if (this.cordova.getActivity().getApplicationContext().getPackageManager().hasSystemFeature(android.content.pm.PackageManager.FEATURE_BLUETOOTH_LE)) {
+                callbackContext.success();
+            } else {
+                callbackContext.error("Bluetooth not supported on this device.");
             }
 
         } else if (action.equals(IS_CONNECTED)) {
