@@ -85,7 +85,7 @@ public class Peripheral extends BluetoothGattCallback {
             public void run() {         
                 peripheral.gatt = device.connectGatt(activity, false, peripheral);
                 if (gatt == null) {
-                    LOG.d(TAG, "connect gatt returned null");
+                        LOG.w(TAG, "connect gatt returned null");
                 }
                 else {
                     LOG.d(TAG, "connect gatt returned not null");
@@ -252,6 +252,9 @@ public class Peripheral extends BluetoothGattCallback {
             if (newDevice != null) {
                 device = newDevice;
             }
+            else {
+                LOG.w(TAG, "getRemoteDevice() failed");
+            }
         }
         return device;
     }
@@ -261,6 +264,7 @@ public class Peripheral extends BluetoothGattCallback {
         super.onServicesDiscovered(gatt, status);
 
         if (status == BluetoothGatt.GATT_SUCCESS) {
+            LOG.d(TAG, "Discovered Services");
             PluginResult result = new PluginResult(PluginResult.Status.OK, this.asJSONObject(gatt));
             result.setKeepCallback(true);
             connectCallback.sendPluginResult(result);
@@ -312,7 +316,7 @@ public class Peripheral extends BluetoothGattCallback {
                 
                     boolean success = gatt.discoverServices();
                     if (!success) {
-                        LOG.d(TAG, "discoverServices() failed");
+                        LOG.e(TAG, "discoverServices() failed");
                         if (peripheral.connectCallback != null) {
                             peripheral.connectCallback.error("Service discovery failed");
                             peripheral.connectCallback = null;
