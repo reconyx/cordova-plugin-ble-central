@@ -15,6 +15,7 @@
 
     <engines>
         <engine name="cordova" version=">=3.1.0" />
+        <engine name="cordova-android" version=">=5.0.0" />
     </engines>
 
     <js-module src="www/ble.js" name="ble">
