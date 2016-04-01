@@ -14,15 +14,23 @@
 
 package com.megster.cordova.ble.central;
 
+import android.annotation.TargetApi;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothManager;
+import android.bluetooth.le.BluetoothLeScanner;
+import android.bluetooth.le.ScanCallback;
+import android.bluetooth.le.ScanFilter;
+import android.bluetooth.le.ScanRecord;
+import android.bluetooth.le.ScanResult;
+import android.bluetooth.le.ScanSettings;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Handler;
 
+import android.os.ParcelUuid;
 import android.provider.Settings;
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaArgs;
@@ -65,7 +73,7 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
 
     private static final String TAG = "BLEPlugin";
     private static final int REQUEST_ENABLE_BLUETOOTH = 1;
-	private static final int RESCAN_INTERVAL = 2000;
+	private static final int RESCAN_INTERVAL = 30000;
 
 	private boolean isScanning = false;
 
@@ -101,99 +109,105 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
             UUID[] serviceUUIDs = parseServiceUUIDList(args.getJSONArray(0));
             findLowEnergyDevices(callbackContext, serviceUUIDs, -1);
 
-        } else if (action.equals(STOP_SCAN)) {
-			isScanning = false;
-            bluetoothAdapter.stopLeScan(this);
-            callbackContext.success();
-
-        } else if (action.equals(LIST)) {
-
-            listKnownDevices(callbackContext);
-
-        } else if (action.equals(CONNECT)) {
-
-            String macAddress = args.getString(0);
-            connect(callbackContext, macAddress);
-
-        } else if (action.equals(DISCONNECT)) {
-
-            String macAddress = args.getString(0);
-            disconnect(callbackContext, macAddress);
-
-        } else if (action.equals(READ)) {
-
-            String macAddress = args.getString(0);
-            UUID serviceUUID = uuidFromString(args.getString(1));
-            UUID characteristicUUID = uuidFromString(args.getString(2));
-            read(callbackContext, macAddress, serviceUUID, characteristicUUID);
-
-        } else if (action.equals(WRITE)) {
-
-            String macAddress = args.getString(0);
-            UUID serviceUUID = uuidFromString(args.getString(1));
-            UUID characteristicUUID = uuidFromString(args.getString(2));
-            byte[] data = args.getArrayBuffer(3);
-            int type = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT;
-            write(callbackContext, macAddress, serviceUUID, characteristicUUID, data, type);
-
-        } else if (action.equals(WRITE_WITHOUT_RESPONSE)) {
-
-            String macAddress = args.getString(0);
-            UUID serviceUUID = uuidFromString(args.getString(1));
-            UUID characteristicUUID = uuidFromString(args.getString(2));
-            byte[] data = args.getArrayBuffer(3);
-            int type = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE;
-            write(callbackContext, macAddress, serviceUUID, characteristicUUID, data, type);
-
-        } else if (action.equals(NOTIFY)) {
-
-            String macAddress = args.getString(0);
-            UUID serviceUUID = uuidFromString(args.getString(1));
-            UUID characteristicUUID = uuidFromString(args.getString(2));
-            registerNotifyCallback(callbackContext, macAddress, serviceUUID, characteristicUUID);
-
-        } else if (action.equals(IS_ENABLED)) {
-
-            if (bluetoothAdapter.isEnabled()) {
-                callbackContext.success();
-            } else {
-                callbackContext.error("Bluetooth is disabled.");
-            }
-
-        } else if (action.equals(IS_CAPABLE)) {
-
-            if (this.cordova.getActivity().getApplicationContext().getPackageManager().hasSystemFeature(android.content.pm.PackageManager.FEATURE_BLUETOOTH_LE)) {
-                callbackContext.success();
-            } else {
-                callbackContext.error("Bluetooth not supported on this device.");
-            }
-
-        } else if (action.equals(IS_CONNECTED)) {
-
-            String macAddress = args.getString(0);
-
-            if (peripherals.containsKey(macAddress) && peripherals.get(macAddress).isConnected()) {
-                callbackContext.success();
-            } else {
-                callbackContext.error("Not connected.");
-            }
-
-        } else if (action.equals(SETTINGS)) {
-
-            Intent intent = new Intent(Settings.ACTION_BLUETOOTH_SETTINGS);
-            cordova.getActivity().startActivity(intent);
-            callbackContext.success();
-
-        } else if (action.equals(ENABLE)) {
-
-            enableBluetoothCallback = callbackContext;
-            Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            cordova.startActivityForResult(this, intent, REQUEST_ENABLE_BLUETOOTH);
-
         } else {
+            if (action.equals(STOP_SCAN)) {
+                isScanning = false;
+                if (android.os.Build.VERSION.SDK_INT < 21) {
+                    bluetoothAdapter.stopLeScan(this);
+                } else {
+                    bluetoothLeScanner().stopScan(this.scanCallback());
+                }
+                callbackContext.success();
 
-            validAction = false;
+            } else if (action.equals(LIST)) {
 
+                listKnownDevices(callbackContext);
+
+            } else if (action.equals(CONNECT)) {
+
+                String macAddress = args.getString(0);
+                connect(callbackContext, macAddress);
+
+            } else if (action.equals(DISCONNECT)) {
+
+                String macAddress = args.getString(0);
+                disconnect(callbackContext, macAddress);
+
+            } else if (action.equals(READ)) {
+
+                String macAddress = args.getString(0);
+                UUID serviceUUID = uuidFromString(args.getString(1));
+                UUID characteristicUUID = uuidFromString(args.getString(2));
+                read(callbackContext, macAddress, serviceUUID, characteristicUUID);
+
+            } else if (action.equals(WRITE)) {
+
+                String macAddress = args.getString(0);
+                UUID serviceUUID = uuidFromString(args.getString(1));
+                UUID characteristicUUID = uuidFromString(args.getString(2));
+                byte[] data = args.getArrayBuffer(3);
+                int type = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT;
+                write(callbackContext, macAddress, serviceUUID, characteristicUUID, data, type);
+
+            } else if (action.equals(WRITE_WITHOUT_RESPONSE)) {
+
+                String macAddress = args.getString(0);
+                UUID serviceUUID = uuidFromString(args.getString(1));
+                UUID characteristicUUID = uuidFromString(args.getString(2));
+                byte[] data = args.getArrayBuffer(3);
+                int type = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE;
+                write(callbackContext, macAddress, serviceUUID, characteristicUUID, data, type);
+
+            } else if (action.equals(NOTIFY)) {
+
+                String macAddress = args.getString(0);
+                UUID serviceUUID = uuidFromString(args.getString(1));
+                UUID characteristicUUID = uuidFromString(args.getString(2));
+                registerNotifyCallback(callbackContext, macAddress, serviceUUID, characteristicUUID);
+
+            } else if (action.equals(IS_ENABLED)) {
+
+                if (bluetoothAdapter.isEnabled()) {
+                    callbackContext.success();
+                } else {
+                    callbackContext.error("Bluetooth is disabled.");
+                }
+
+            } else if (action.equals(IS_CAPABLE)) {
+
+                if (this.cordova.getActivity().getApplicationContext().getPackageManager().hasSystemFeature(android.content.pm.PackageManager.FEATURE_BLUETOOTH_LE)) {
+                    callbackContext.success();
+                } else {
+                    callbackContext.error("Bluetooth not supported on this device.");
+                }
+
+            } else if (action.equals(IS_CONNECTED)) {
+
+                String macAddress = args.getString(0);
+
+                if (peripherals.containsKey(macAddress) && peripherals.get(macAddress).isConnected()) {
+                    callbackContext.success();
+                } else {
+                    callbackContext.error("Not connected.");
+                }
+
+            } else if (action.equals(SETTINGS)) {
+
+                Intent intent = new Intent(Settings.ACTION_BLUETOOTH_SETTINGS);
+                cordova.getActivity().startActivity(intent);
+                callbackContext.success();
+
+            } else if (action.equals(ENABLE)) {
+
+                enableBluetoothCallback = callbackContext;
+                Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                cordova.startActivityForResult(this, intent, REQUEST_ENABLE_BLUETOOTH);
+
+            } else {
+
+                validAction = false;
+
+            }
         }
 
         return validAction;
@@ -286,10 +300,98 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
 
     }
 
+    protected ScanCallback _scanCallback = null;
+
+    @TargetApi(21)
+    protected ScanCallback scanCallback() {
+        if (_scanCallback == null) {
+            _scanCallback = new ScanCallback() {
+                @Override
+                public void onScanResult ( int callbackType, ScanResult result){
+                    BluetoothDevice device = result.getDevice();
+                    if (device != null) {
+                        int rssi = result.getRssi();
+                        ScanRecord scanRecord = result.getScanRecord();
+                        assert scanRecord != null;
+                        byte[] rawScanRecord = scanRecord.getBytes();
+
+                        Peripheral peripheral = new Peripheral(bluetoothManager, bluetoothAdapter, device, rssi, rawScanRecord);
+                        peripherals.put(device.getAddress(), peripheral);
+
+                        if (discoverCallback != null) {
+                            PluginResult pluginResult = new PluginResult(PluginResult.Status.OK, peripheral.asJSONObject());
+                            pluginResult.setKeepCallback(true);
+                            discoverCallback.sendPluginResult(pluginResult);
+                        }
+                    }
+                }
+                @Override
+                public void onBatchScanResults (List < ScanResult > results) {
+                    for (ScanResult result : results) {
+                        onScanResult(2, result);
+                    }
+                }
+
+                @Override
+                public void onScanFailed ( int errorCode){
+                    PluginResult result = new PluginResult(PluginResult.Status.ERROR, errorCode);
+                    result.setKeepCallback(false);
+                    discoverCallback.sendPluginResult(result);
+                }
+            } ;
+        }
+        return _scanCallback;
+    }
+
+    @TargetApi(21)
+    private List<ScanFilter> scanFilters() {
+        List<ScanFilter> list = new ArrayList<ScanFilter>();
+        for (UUID uuid : this.scanFilterUuids) {
+            ParcelUuid parcelUuid = new ParcelUuid(uuid);
+            ScanFilter filter = new ScanFilter.Builder().setServiceUuid(parcelUuid).build();
+            list.add(filter);    
+        }
+        
+        return list;
+    } 
+
+    private ScanSettings _scanSettings = null;
+
+    @TargetApi(23)
+    private ScanSettings scanSettings() {
+        if (_scanSettings == null) {
+            if (android.os.Build.VERSION.SDK_INT >= 23) {
+                _scanSettings = new ScanSettings.Builder()
+                        .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+                        .setMatchMode(ScanSettings.MATCH_MODE_AGGRESSIVE)
+                        .setReportDelay(0)
+                        .setNumOfMatches(ScanSettings.MATCH_NUM_MAX_ADVERTISEMENT)
+                        .build();
+            }
+            else {
+                _scanSettings = new ScanSettings.Builder()
+                        .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+                        .setReportDelay(0)
+                        .build();
+            }
+        }
+        return _scanSettings;
+    }
+
+    private BluetoothLeScanner _bluetoothLeScanner = null;
+
+    @TargetApi(21)
+    private BluetoothLeScanner bluetoothLeScanner() {
+        if (_bluetoothLeScanner == null) {
+            _bluetoothLeScanner = bluetoothAdapter.getBluetoothLeScanner();
+        }       
+        return _bluetoothLeScanner;
+    }
+    
     private void findLowEnergyDevices(CallbackContext callbackContext, final UUID[] serviceUUIDs, int scanSeconds) {
 
         // TODO skip if currently scanning
-
+    
         // clear non-connected cached peripherals
         for(Iterator<Map.Entry<String, Peripheral>> iterator = peripherals.entrySet().iterator(); iterator.hasNext(); ) {
             Map.Entry<String, Peripheral> entry = iterator.next();
@@ -305,34 +407,40 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
         // the Android 4.3 code has a bug parsing UUIDs.  This code gets around that by
         // asking android for everything, and then filtering the results after the fact
         // instead of by providing Android with the UUID to filter
-        bluetoothAdapter.startLeScan(this);
+        if (android.os.Build.VERSION.SDK_INT < 21) {
+            bluetoothAdapter.startLeScan(this);
 
-        if (scanSeconds > 0) {
-            Handler handler = new Handler();
-            handler.postDelayed(new Runnable() {
+            if (scanSeconds > 0) {
+                Handler handler = new Handler();
+                handler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        isScanning = false;
+                        LOG.d(TAG, "Stopping Scan");
+                        BLECentralPlugin.this.bluetoothAdapter.stopLeScan(BLECentralPlugin.this);
+                    }
+                }, scanSeconds * 1000);
+            }
+
+            isScanning = true;
+
+            final Handler rescanHandler = new Handler();
+            rescanHandler.postDelayed(new Runnable() {
                 @Override
                 public void run() {
-					isScanning = false;
-                    LOG.d(TAG, "Stopping Scan");
-                    BLECentralPlugin.this.bluetoothAdapter.stopLeScan(BLECentralPlugin.this);
+                    LOG.d(TAG, "Rescanning");
+                    if (isScanning) {
+                        BLECentralPlugin.this.bluetoothAdapter.stopLeScan(BLECentralPlugin.this);
+                        BLECentralPlugin.this.bluetoothAdapter.startLeScan(BLECentralPlugin.this);
+                        rescanHandler.postDelayed(this, RESCAN_INTERVAL);
+                    }
                 }
-            }, scanSeconds * 1000);
+            }, RESCAN_INTERVAL);    
+        }        
+        else {
+            bluetoothLeScanner().startScan(this.scanFilters(), this.scanSettings(), scanCallback());
         }
 
-		isScanning = true;
-
-		final Handler rescanHandler = new Handler();
-        rescanHandler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                LOG.d(TAG, "Rescanning");
-				if (isScanning) {
-					BLECentralPlugin.this.bluetoothAdapter.stopLeScan(BLECentralPlugin.this);
-                    BLECentralPlugin.this.bluetoothAdapter.startLeScan(BLECentralPlugin.this);
-					rescanHandler.postDelayed(this, RESCAN_INTERVAL);
-				}
-            }
-        }, RESCAN_INTERVAL);
 
         PluginResult result = new PluginResult(PluginResult.Status.NO_RESULT);
         result.setKeepCallback(true);
