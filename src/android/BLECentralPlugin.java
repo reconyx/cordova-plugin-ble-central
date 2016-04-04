@@ -14,6 +14,7 @@
 
 package com.megster.cordova.ble.central;
 
+import android.Manifest;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
@@ -28,6 +29,7 @@ import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Handler;
 
 import android.os.ParcelUuid;
@@ -69,6 +71,7 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
     private static final String ENABLE = "enable";
     // callbacks
     CallbackContext discoverCallback;
+    int discoverSeconds;
     private CallbackContext enableBluetoothCallback;
 
     private static final String TAG = "BLEPlugin";
@@ -84,6 +87,47 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
     Map<String, Peripheral> peripherals = new LinkedHashMap<String, Peripheral>();
 
     UUID[] scanFilterUuids = null;
+
+    private static final String BLUETOOTH_PERMISSION = Manifest.permission.BLUETOOTH_ADMIN;
+    private static final String BLUETOOTH_PERMISSION2 = Manifest.permission.ACCESS_COARSE_LOCATION;
+
+    private void getPermission(int requestCode)
+    {
+        ArrayList<String> permissions = new ArrayList<String>();
+        if (!cordova.hasPermission(BLUETOOTH_PERMISSION)) {
+            permissions.add(BLUETOOTH_PERMISSION);
+        }
+        if (!cordova.hasPermission(BLUETOOTH_PERMISSION2)) {
+            permissions.add(BLUETOOTH_PERMISSION2);
+        }
+        cordova.requestPermissions(this, requestCode, permissions.toArray(new String[0]));
+    }
+
+    private boolean hasPermission() {
+        return cordova.hasPermission(BLUETOOTH_PERMISSION) && cordova.hasPermission(BLUETOOTH_PERMISSION2);
+    }
+
+    @Override
+    public void onRequestPermissionResult(int requestCode, String[] permissions, int[] grantResults) throws JSONException
+    {
+        for(int r:grantResults)
+        {
+            if(r == PackageManager.PERMISSION_DENIED)
+            {
+                LOG.i(TAG, "Permission Denied");
+                if (discoverCallback != null) {
+                    PluginResult pluginResult = new PluginResult(PluginResult.Status.ERROR, "permission denied");
+                    discoverCallback.sendPluginResult(pluginResult);
+                    discoverCallback = null;
+                }
+                return;
+            }
+        }
+        LOG.i(TAG, "Permission Granted");
+        if (discoverCallback != null) {
+            findLowEnergyDevices();
+        }
+    }
 
     @Override
     public boolean execute(String action, CordovaArgs args, CallbackContext callbackContext) throws JSONException {
@@ -391,7 +435,22 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
     private void findLowEnergyDevices(CallbackContext callbackContext, final UUID[] serviceUUIDs, int scanSeconds) {
 
         // TODO skip if currently scanning
-    
+
+        discoverCallback = callbackContext;
+        discoverSeconds = scanSeconds;
+        scanFilterUuids = serviceUUIDs;
+
+        if(hasPermission()) {
+            LOG.d(TAG, "has permission");
+            findLowEnergyDevices();
+        }
+        else {
+            getPermission(0);
+        }
+    }
+
+    private void findLowEnergyDevices() {
+
         // clear non-connected cached peripherals
         for(Iterator<Map.Entry<String, Peripheral>> iterator = peripherals.entrySet().iterator(); iterator.hasNext(); ) {
             Map.Entry<String, Peripheral> entry = iterator.next();
@@ -399,10 +458,6 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
                 iterator.remove();
             }
         }
-
-        discoverCallback = callbackContext;
-
-        scanFilterUuids = serviceUUIDs;
         
         // the Android 4.3 code has a bug parsing UUIDs.  This code gets around that by
         // asking android for everything, and then filtering the results after the fact
@@ -410,7 +465,7 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
         if (android.os.Build.VERSION.SDK_INT < 21) {
             bluetoothAdapter.startLeScan(this);
 
-            if (scanSeconds > 0) {
+            if (discoverSeconds > 0) {
                 Handler handler = new Handler();
                 handler.postDelayed(new Runnable() {
                     @Override
@@ -419,7 +474,7 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
                         LOG.d(TAG, "Stopping Scan");
                         BLECentralPlugin.this.bluetoothAdapter.stopLeScan(BLECentralPlugin.this);
                     }
-                }, scanSeconds * 1000);
+                }, discoverSeconds * 1000);
             }
 
             isScanning = true;
@@ -444,7 +499,7 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
 
         PluginResult result = new PluginResult(PluginResult.Status.NO_RESULT);
         result.setKeepCallback(true);
-        callbackContext.sendPluginResult(result);
+        discoverCallback.sendPluginResult(result);
     }
 
     private void listKnownDevices(CallbackContext callbackContext) {
