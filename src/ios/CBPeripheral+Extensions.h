@@ -26,8 +26,10 @@
 
 @property (nonatomic, retain) NSDictionary *advertising;
 @property (nonatomic, retain) NSNumber *advertisementRSSI;
+@property (nonatomic, retain) NSNumber *normalRSSI;
 
 -(void)setAdvertisementData:(NSDictionary *)advertisementData RSSI:(NSNumber*)rssi;
+-(void)setNormalRSSI:(NSNumber *)normalRSSI;
 -(NSDictionary *)asDictionary;
 -(NSString *)uuidAsString;
 

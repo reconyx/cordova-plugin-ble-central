@@ -354,6 +354,8 @@
     [peripheral discoverServices:nil];
 
     // NOTE: not calling connect success until characteristics are discovered
+    
+    [peripheral readRSSI];
 }
 
 - (void)centralManager:(CBCentralManager *)central didDisconnectPeripheral:(CBPeripheral *)peripheral error:(NSError *)error {
@@ -520,6 +522,11 @@
         [writeCallbacks removeObjectForKey:key];
     }
 
+}
+
+-(void)peripheral:(CBPeripheral *)peripheral didReadRSSI:(nonnull NSNumber *)RSSI error:(nullable NSError *)error {
+    
+    [peripheral setNormalRSSI:RSSI];
 }
 
 #pragma mark - internal implemetation

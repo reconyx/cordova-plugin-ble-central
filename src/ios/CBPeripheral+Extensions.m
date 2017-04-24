@@ -20,6 +20,7 @@
 
 static char ADVERTISING_IDENTIFER;
 static char ADVERTISEMENT_RSSI_IDENTIFER;
+static char NORMAL_RSSI_IDENTIFIER;
 
 @implementation CBPeripheral(com_megster_ble_extension)
 
@@ -48,8 +49,8 @@ static char ADVERTISEMENT_RSSI_IDENTIFER;
         [dictionary setObject: [self name] forKey: @"name"];
     }
 
-    if ([self RSSI]) {
-        [dictionary setObject: [self RSSI] forKey: @"rssi"];
+    if ([self normalRSSI]) {
+        [dictionary setObject: [self normalRSSI] forKey: @"rssi"];
     } else if ([self advertisementRSSI]) {
         [dictionary setObject: [self advertisementRSSI] forKey: @"rssi"];
     }
@@ -264,5 +265,13 @@ id dataToArrayBuffer(NSData* data)
     return objc_getAssociatedObject(self, &ADVERTISEMENT_RSSI_IDENTIFER);
 }
 
+
+-(void)setNormalRSSI:(NSNumber *)newRSSIValue {
+    objc_setAssociatedObject(self, &NORMAL_RSSI_IDENTIFIER, newRSSIValue, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+-(NSString*)normalRSSI{
+    return objc_getAssociatedObject(self, &NORMAL_RSSI_IDENTIFIER);
+}
 @end
 
