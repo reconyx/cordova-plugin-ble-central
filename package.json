@@ -1,0 +1,35 @@
+{
+  "name": "cordova-plugin-ble-central",
+  "version": "0.2.3",
+  "description": "Bluetooth Low Energy (BLE) Central Plugin",
+  "cordova": {
+    "id": "com.reconyx.cordova.ble",
+    "platforms": [
+      "ios",
+      "android",
+      "wp8"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adamtegen/cordova-plugin-ble-central.git"
+  },
+  "keywords": [
+    "cordova",
+    "bluetooth",
+    "ble",
+    "bluetoothle",
+    "bluetooth le",
+    "low energy",
+    "smart",
+    "ecosystem:cordova",
+    "cordova-ios",
+    "cordova-android"
+  ],
+  "author": "Adam Tegen <ategen@reconyx.com>",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/adamtegen/cordova-plugin-ble-central/issues"
+  },
+  "homepage": "https://github.com/adamtegen/cordova-plugin-ble-central#readme"
+}
