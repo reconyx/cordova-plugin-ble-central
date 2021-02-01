@@ -90,6 +90,7 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
 
     private static final String BLUETOOTH_PERMISSION = Manifest.permission.BLUETOOTH_ADMIN;
     private static final String BLUETOOTH_PERMISSION2 = Manifest.permission.ACCESS_COARSE_LOCATION;
+    private static final String BLUETOOTH_PERMISSION3 = Manifest.permission.ACCESS_FINE_LOCATION;
 
     private void getPermission(int requestCode)
     {
@@ -100,11 +101,26 @@ public class BLECentralPlugin extends CordovaPlugin implements BluetoothAdapter.
         if (!cordova.hasPermission(BLUETOOTH_PERMISSION2)) {
             permissions.add(BLUETOOTH_PERMISSION2);
         }
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            if (!cordova.hasPermission(BLUETOOTH_PERMISSION3)) {
+                permissions.add(BLUETOOTH_PERMISSION3);
+            }
+        }
         cordova.requestPermissions(this, requestCode, permissions.toArray(new String[0]));
     }
 
     private boolean hasPermission() {
-        return cordova.hasPermission(BLUETOOTH_PERMISSION) && cordova.hasPermission(BLUETOOTH_PERMISSION2);
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            LOG.d(TAG, "hasPermission >= 29 BLUETOOTH_ADMIN: " + cordova.hasPermission(BLUETOOTH_PERMISSION) );
+            LOG.d(TAG, "hasPermission >= 29 ACCESS_COARSE_LOCATION: " + cordova.hasPermission(BLUETOOTH_PERMISSION2) );
+            LOG.d(TAG, "hasPermission >= 29 ACCESS_FINE_LOCATION: " + cordova.hasPermission(BLUETOOTH_PERMISSION3) );
+            return cordova.hasPermission(BLUETOOTH_PERMISSION) && cordova.hasPermission(BLUETOOTH_PERMISSION2) && cordova.hasPermission(BLUETOOTH_PERMISSION3);
+        }
+        else {
+            LOG.d(TAG, "hasPermission < 29 BLUETOOTH_ADMIN: " + cordova.hasPermission(BLUETOOTH_PERMISSION) );
+            LOG.d(TAG, "hasPermission < 29 ACCESS_COARSE_LOCATION: " + cordova.hasPermission(BLUETOOTH_PERMISSION2) );
+            return cordova.hasPermission(BLUETOOTH_PERMISSION) && cordova.hasPermission(BLUETOOTH_PERMISSION2);
+        }
     }
 
     @Override
